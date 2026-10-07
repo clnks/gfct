@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#4D7A57">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="GFCT">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>GFCT</title>
+<link rel="icon" type="image/png" href="__ICON__">
+<link rel="apple-touch-icon" href="__ICON__">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600&family=Nunito:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#EEF2EA;--surface:#FFFFFF;--ink:#1E2A22;--muted:#58685C;--line:#CAD7C3;--accent:#4D7A57;--accent-ink:#FFFFFF;--bad:#B3302A}
+@media (prefers-color-scheme: dark){:root{--paper:#111713;--surface:#1A231D;--ink:#E7EFE8;--muted:#9DB0A2;--line:#324238;--accent:#9DC8A5;--accent-ink:#0F1611;--bad:#FF8C82;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;min-height:100dvh;display:grid;place-items:center;background:var(--paper);color:var(--ink);font:16px/1.5 Nunito,system-ui,sans-serif;padding:16px;padding-top:calc(16px + env(safe-area-inset-top,0px));padding-bottom:calc(16px + env(safe-area-inset-bottom,0px))}
+form{width:100%;max-width:360px;background:var(--surface);border:2px solid var(--ink);border-radius:22px;padding:28px;box-shadow:4px 4px 0 var(--ink)}
+.ic{width:56px;height:56px;border-radius:14px;display:block;margin-bottom:14px}
+h1{font:600 38px/1.1 Fredoka,system-ui,sans-serif;margin:0 0 4px}
+p{color:var(--muted);margin:0 0 20px}
+input[type=password]{font:inherit;font-size:20px;text-align:center;width:100%;padding:12px 14px;border:2px solid var(--ink);border-radius:12px;background:var(--paper);color:var(--ink)}
+label{display:flex;gap:8px;align-items:center;font-size:14px;color:var(--muted);margin:12px 0 18px}
+button{font:inherit;font-weight:800;width:100%;padding:12px;border:2px solid var(--ink);border-radius:12px;background:var(--accent);color:var(--accent-ink);cursor:pointer;box-shadow:3px 3px 0 var(--ink)}
+button:active{transform:translate(3px,3px);box-shadow:none}
+#err{color:var(--bad);font-size:14px;min-height:20px;margin:10px 0 0}
+</style>
+</head>
+<body>
+<form id="f">
+  <img class="ic" src="__ICON__" alt="">
+  <h1>GFCT</h1>
+  <p>Enter your passcode.</p>
+  <input type="password" id="pw" autocomplete="current-password" placeholder="Passcode" required autofocus>
+  <label><input type="checkbox" id="rem" checked> Remember on this device</label>
+  <button id="go">Open</button>
+  <div id="err" role="alert"></div>
+</form>
+<script>
+(() => {
+const P=__PAYLOAD__;
+const un=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+async function unlock(pass){
+  const e=new TextEncoder();
+  const base=await crypto.subtle.importKey("raw",e.encode(pass),"PBKDF2",false,["deriveKey"]);
+  const key=await crypto.subtle.deriveKey({name:"PBKDF2",salt:un(P.s),iterations:P.n,hash:"SHA-256"},base,{name:"AES-GCM",length:256},false,["decrypt"]);
+  const out=await crypto.subtle.decrypt({name:"AES-GCM",iv:un(P.i)},key,un(P.c));
+  const html=new TextDecoder().decode(out);
+  document.open();document.write(html);document.close();
+}
+const get=()=>{try{return localStorage.getItem("gfct-pass")}catch(e){return null}};
+const saved=get();
+if(saved){unlock(saved).catch(()=>{try{localStorage.removeItem("gfct-pass")}catch(e){}})}
+document.getElementById("f").addEventListener("submit",async ev=>{
+  ev.preventDefault();
+  const pw=document.getElementById("pw").value.trim(), btn=document.getElementById("go");
+  btn.textContent="Opening...";btn.disabled=true;
+  const remember=document.getElementById("rem").checked;
+  try{
+    await unlock(pw);
+    if(remember){try{localStorage.setItem("gfct-pass",pw)}catch(e){}}
+  }catch(e){
+    try{localStorage.removeItem("gfct-pass")}catch(e){}
+    document.getElementById("err").textContent="That's not it. Try again.";
+    btn.textContent="Open";btn.disabled=false;
+  }
+});
+})();
+</script>
+</body>
+</html>
